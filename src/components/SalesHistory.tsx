@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, SaleLog } from '../db';
 import { format } from 'date-fns';
-import { Search, FileText, Printer, Filter } from 'lucide-react';
+import { Search, FileText, Printer, Filter, Download } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 
 export default function SalesHistory() {
@@ -26,6 +26,44 @@ export default function SalesHistory() {
 
     return matchesSearch && matchesDate && matchesPayment;
   });
+
+  const exportCSV = () => {
+    import('../utils/export').then(m => {
+      const data = filteredSales.map(s => ({
+        ID: s.id,
+        Date: format(new Date(s.timestamp), 'yyyy-MM-dd HH:mm'),
+        Customer: s.customerName || 'Walk-in',
+        Salesperson: s.salespersonName,
+        Method: s.paymentMethod,
+        Total: s.totalAmount
+      }));
+      m.exportToCSV(data, 'Sales_History.csv');
+    });
+  };
+
+  const exportPDF = () => {
+    import('jspdf').then(jspdf => {
+      import('jspdf-autotable').then(autoTable => {
+        const jsPDF = jspdf.default;
+        const doc = new jsPDF();
+        doc.text('Sales History Report', 14, 15);
+        const tableData = filteredSales.map(s => [
+          s.id?.toString() || '',
+          format(new Date(s.timestamp), 'yyyy-MM-dd HH:mm'),
+          s.customerName || 'Walk-in',
+          s.salespersonName,
+          s.paymentMethod,
+          `$${s.totalAmount.toFixed(2)}`
+        ]);
+        autoTable.default(doc, {
+          startY: 20,
+          head: [['Receipt #', 'Date', 'Customer', 'Staff', 'Method', 'Total']],
+          body: tableData,
+        });
+        doc.save('Sales_History.pdf');
+      });
+    });
+  };
 
   const handlePrint = (sale: SaleLog) => {
     const printWindow = window.open('', '_blank');
@@ -148,6 +186,24 @@ export default function SalesHistory() {
              <option value="Card (ZiG)">Card (ZiG)</option>
              <option value="Ecocash">Ecocash</option>
           </select>
+          <div className="flex space-x-2 border-l border-slate-200 pl-3">
+            <button 
+              onClick={exportCSV}
+              className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+              title="Export CSV"
+            >
+              <Download size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <button 
+              onClick={exportPDF}
+              className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+              title="Export PDF"
+            >
+              <FileText size={16} className="sm:mr-2" />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -185,6 +241,16 @@ export default function SalesHistory() {
                   ${sale.totalAmount.toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right font-medium">
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      import('../utils/pdf').then(m => m.generateReceiptPDF(sale, settings));
+                    }} 
+                    className="text-slate-500 hover:text-blue-600 p-1 mr-2 rounded-md hover:bg-blue-50 transition-colors"
+                    title="Download PDF"
+                  >
+                    <Download size={18} />
+                  </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); handlePrint(sale); }} 
                     className="text-slate-500 hover:text-emerald-600 p-1 rounded-md hover:bg-emerald-50 transition-colors"

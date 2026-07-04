@@ -7,7 +7,7 @@ import { useAppContext } from '../AppContext';
 export default function StaffList() {
   const staff = useLiveQuery(() => db.staff.toArray()) || [];
   const sales = useLiveQuery(() => db.sales.toArray()) || [];
-  const { currentUser } = useAppContext();
+  const { currentUser, refreshStaff } = useAppContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
@@ -52,6 +52,7 @@ export default function StaffList() {
         await logAction('ADD_STAFF', `Added staff: ${editingStaff.name}`);
       }
       setIsModalOpen(false);
+      refreshStaff();
     }
   };
 
@@ -59,6 +60,7 @@ export default function StaffList() {
     if (window.confirm(`Are you sure you want to delete ${name}?`)) {
       await db.staff.delete(id);
       await logAction('DELETE_STAFF', `Deleted staff: ${name}`);
+      refreshStaff();
     }
   };
 
@@ -68,6 +70,7 @@ export default function StaffList() {
       await db.staff.update(user.id!, { pin: newPin });
       alert(`The new PIN for ${user.name} is: ${newPin}\nPlease share it with them.`);
       await logAction('RESET_PIN', `Reset PIN for ${user.name}`);
+      refreshStaff();
     }
   };
 
@@ -191,7 +194,10 @@ export default function StaffList() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">PIN (For Login)</label>
-                <input required type="text" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingStaff.pin} onChange={e => setEditingStaff({...editingStaff, pin: e.target.value})} />
+                <input required type="text" maxLength={4} pattern="[0-9]{4}" title="4 digit PIN" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingStaff.pin} onChange={e => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setEditingStaff({...editingStaff, pin: val});
+                }} />
               </div>
 
               <div className="pt-4 flex justify-end space-x-3">

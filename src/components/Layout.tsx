@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Package, Users, Settings, Menu, X, WifiOff, Download, History } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Users, Settings, Menu, X, WifiOff, Download, History, Moon, Sun } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 
 export default function Layout() {
-  const { settings, currentUser, setCurrentUser, logoutUser, staffList } = useAppContext();
+  const { settings, updateSettings, currentUser, setCurrentUser, logoutUser, staffList } = useAppContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  
+  const toggleTheme = () => {
+    updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
+  };
+  
+  const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -134,6 +140,13 @@ export default function Layout() {
             </div>
             
             <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="p-2 text-slate-500 hover:text-emerald-500 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Toggle Theme"
+              >
+                {settings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
               <button 
                 onClick={logoutUser}
                 className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg font-bold transition-colors"

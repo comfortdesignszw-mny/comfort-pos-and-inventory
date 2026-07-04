@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product } from '../db';
-import { Search, Plus, Edit2, Trash2, Share2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../AppContext';
+import { exportToCSV } from '../utils/export';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Inventory() {
   const products = useLiveQuery(() => db.products.toArray()) || [];
-  const { currentUser } = useAppContext();
+  const { currentUser, settings } = useAppContext();
   const [activeTab, setActiveTab] = useState<'product' | 'service'>('product');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -16,6 +19,36 @@ export default function Inventory() {
   const filteredItems = products.filter(p => 
     p.type === activeTab && p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const exportCSV = () => {
+    const data = filteredItems.map(p => ({
+      ID: p.id,
+      Name: p.name,
+      Type: p.type,
+      OrderPrice: p.unitOrderPrice,
+      SellingPrice: p.unitSellingPrice,
+      Quantity: p.quantity || 0
+    }));
+    exportToCSV(data, `Inventory_${activeTab}.csv`);
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text(`Inventory Report - ${activeTab.toUpperCase()}`, 14, 15);
+    const tableData = filteredItems.map(p => [
+      p.id?.toString() || '',
+      p.name,
+      `$${p.unitOrderPrice.toFixed(2)}`,
+      `$${p.unitSellingPrice.toFixed(2)}`,
+      p.quantity?.toString() || '0'
+    ]);
+    autoTable(doc, {
+      startY: 20,
+      head: [['ID', 'Name', 'Order Price', 'Selling Price', 'Quantity']],
+      body: tableData,
+    });
+    doc.save(`Inventory_${activeTab}.pdf`);
+  };
 
   const logAction = async (action: string, details: string) => {
     if (currentUser?.id) {
@@ -108,6 +141,22 @@ export default function Inventory() {
             />
           </div>
           <button 
+            onClick={exportCSV}
+            className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+            title="Export CSV"
+          >
+            <Download size={16} className="sm:mr-2" />
+            <span className="hidden sm:inline">CSV</span>
+          </button>
+          <button 
+            onClick={exportPDF}
+            className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+            title="Export PDF"
+          >
+            <FileText size={16} className="sm:mr-2" />
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+          <button 
             onClick={() => openModal()}
             className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
           >
@@ -146,7 +195,8 @@ export default function Inventory() {
                 </td>
                 {activeTab === 'product' && (
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase rounded ${item.quantity > 10 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase rounded items-center gap-1 ${item.quantity > (settings.lowStockThreshold || 10) ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      {item.quantity <= (settings.lowStockThreshold || 10) && <AlertTriangle size={10} />}
                       {item.quantity} in stock
                     </span>
                   </td>

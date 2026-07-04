@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product, SaleItem } from '../db';
 import { useAppContext } from '../AppContext';
-import { Search, Plus, Minus, Trash2, Printer, FileText, Share2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Printer, FileText, Share2, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function POS() {
@@ -153,7 +153,7 @@ export default function POS() {
               <button
                 key={product.id}
                 onClick={() => addToCart(product)}
-                className="flex flex-col items-center justify-center p-4 border border-slate-200 rounded-xl hover:border-emerald-500 hover:shadow-md transition-all bg-white text-left text-sm group"
+                className="flex flex-col items-center justify-center p-4 border border-slate-200 rounded-xl hover:border-emerald-500 transition-all bg-white text-left text-sm group glow-card"
               >
                 <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-emerald-50 flex items-center justify-center text-slate-600 group-hover:text-emerald-600 font-bold mb-3 transition-colors">
                   {product.name.substring(0, 2).toUpperCase()}
@@ -263,14 +263,35 @@ export default function POS() {
               <FileText size={16} className="mr-2" />
               Quote
             </button>
-            <button 
-              onClick={handlePrint}
-              disabled={cart.length === 0}
-              className="flex items-center justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
-            >
-              <Printer size={16} className="mr-2" />
-              Print
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handlePrint}
+                disabled={cart.length === 0}
+                className="flex-1 flex items-center justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                <Printer size={16} className="mr-1" />
+                Print
+              </button>
+              <button 
+                onClick={() => {
+                  const sale = {
+                    items: cart,
+                    discount,
+                    totalAmount: totalPayable,
+                    paymentMethod,
+                    customerName,
+                    salespersonName: currentUser?.name,
+                    timestamp: Date.now()
+                  };
+                  import('../utils/pdf').then(m => m.generateReceiptPDF(sale, settings));
+                }}
+                disabled={cart.length === 0}
+                className="flex-1 flex items-center justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                <Download size={16} className="mr-1" />
+                PDF
+              </button>
+            </div>
           </div>
         </div>
       </div>

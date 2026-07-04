@@ -1,5 +1,35 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary-500: #10b981;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply dark:bg-slate-900 dark:text-slate-100;
+  }
+  .bg-white {
+    @apply dark:bg-slate-950;
+  }
+  .bg-slate-50 {
+    @apply dark:bg-slate-900;
+  }
+  .bg-slate-100 {
+    @apply dark:bg-slate-800;
+  }
+  .border-slate-200, .border-slate-100, .border-slate-300 {
+    @apply dark:border-slate-800;
+  }
+  .text-slate-800, .text-slate-900, .text-slate-700 {
+    @apply dark:text-slate-100;
+  }
+  .text-slate-500, .text-slate-600 {
+    @apply dark:text-slate-400;
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -32,4 +62,17 @@
     margin: 0;
     padding: 0;
   }
+}
+
+/* Neon Glow Effect */
+.glow-card {
+  transition: all 0.3s ease-in-out;
+}
+.glow-card:hover {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5), 0 0 30px rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.8);
+  transform: translateY(-2px);
+}
+.dark .glow-card:hover {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.7), 0 0 40px rgba(16, 185, 129, 0.4);
 }

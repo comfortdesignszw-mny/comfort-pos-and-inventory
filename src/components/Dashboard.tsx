@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { DollarSign, TrendingUp, TrendingDown, ShoppingBag, FileText, ArrowRightLeft, AlertTriangle } from 'lucide-react';
-import { format, subDays, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
+import { format, subDays, isSameDay, isSameWeek, isSameMonth, startOfDay, eachDayOfInterval } from 'date-fns';
 import { useAppContext } from '../AppContext';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,6 +26,22 @@ export default function Dashboard() {
   const totalDaily = dailySales.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalWeekly = weeklySales.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalMonthly = monthlySales.reduce((sum, s) => sum + s.totalAmount, 0);
+
+  // Calculate chart data for past 7 days
+  const chartData = useMemo(() => {
+    const end = startOfDay(new Date());
+    const start = subDays(end, 6);
+    const days = eachDayOfInterval({ start, end });
+    
+    return days.map(day => {
+      const daySales = completedSales.filter(s => isSameDay(new Date(s.timestamp), day));
+      const total = daySales.reduce((sum, s) => sum + s.totalAmount, 0);
+      return {
+        date: format(day, 'EEE'),
+        sales: total
+      };
+    });
+  }, [completedSales]);
 
   // Inventory Value
   const totalInventoryOrderValue = products.reduce((sum, p) => sum + (p.quantity * (p.unitOrderPrice || 0)), 0);
@@ -64,6 +81,24 @@ export default function Dashboard() {
         <StatCard title="Inventory Value" value={totalInventoryOrderValue} subtext={`Total Stock: ${products.length} Units`} />
         <StatCard title="Net Profit (MTD)" value={realizedProfit} subtext="Target: $15,000" color="emerald" />
         <StatCard title="Active Quotations" value={quotations.length} subtext={`Potential: $${(quotations.length * 600).toFixed(2)}`} color="blue" isCount={true} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h4 className="font-bold text-slate-700 mb-6">Sales Performance (Past 7 Days)</h4>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} tickFormatter={(value) => `$${value}`} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']}
+              />
+              <Line type="monotone" dataKey="sales" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -128,7 +163,7 @@ function StatCard({ title, value, subtext, trend, color = 'slate', isCount = fal
   const subtextColor = color === 'blue' ? 'text-blue-600 font-bold uppercase tracking-tighter' : 'text-slate-400 font-medium';
 
   return (
-    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm glow-card cursor-pointer">
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{title}</p>
       <h3 className={`text-2xl font-black ${textColor}`}>
         {isCount ? value : `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}

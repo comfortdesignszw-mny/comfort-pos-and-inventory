@@ -60,6 +60,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem('comfort_pos_settings_v2', JSON.stringify(settings));
     document.documentElement.setAttribute('data-theme', settings.theme);
+    if (settings.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [settings]);
 
   useEffect(() => {
