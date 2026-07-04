@@ -1,0 +1,6 @@
+{
+  "name": "Comfort POS and Inventory",
+  "description": "A 100% offline-first, client-side Progressive Web Application (PWA) for Point of Sale and Inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
