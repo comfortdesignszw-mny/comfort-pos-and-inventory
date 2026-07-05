@@ -110,7 +110,7 @@ export default function Layout() {
                 onClick={handleInstallClick}
                 className="w-full mt-2 bg-emerald-600 text-white text-xs font-semibold py-2 rounded shadow-lg hover:bg-emerald-700 transition-colors"
               >
-                Install Desktop App
+                Install App
               </button>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function Layout() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="flex items-center justify-between h-16 px-8 bg-white border-b border-slate-200 shrink-0">
+        <header className="flex items-center justify-between h-16 px-4 sm:px-8 bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center">
             <button className="text-slate-500 lg:hidden mr-4" onClick={() => setSidebarOpen(true)}>
               <Menu size={24} />
@@ -131,7 +131,15 @@ export default function Layout() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2 sm:space-x-6">
+            {deferredPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="lg:hidden text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-emerald-600"
+              >
+                Install App
+              </button>
+            )}
             <div className="text-right hidden md:block">
               <p className="text-sm font-bold text-slate-700">{currentUser?.role}: {currentUser?.name}</p>
               <p className="text-[10px] text-emerald-600 font-bold uppercase">

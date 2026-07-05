@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product } from '../db';
-import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle, Scan } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle, Scan, Upload } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 import { exportToCSV } from '../utils/export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import BarcodeScannerModal from './BarcodeScannerModal';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
+import Papa from 'papaparse';
 
 export default function Inventory() {
   const products = useLiveQuery(() => db.products.toArray()) || [];
@@ -15,6 +16,7 @@ export default function Inventory() {
   const [activeTab, setActiveTab] = useState<'product' | 'service'>('product');
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
@@ -28,6 +30,60 @@ export default function Inventory() {
     (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
      (p.barcode && p.barcode.includes(searchTerm)))
   );
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const importedData = results.data as any[];
+          const newProducts: Product[] = [];
+
+          for (const item of importedData) {
+            // Very simple validation & mapping logic
+            const name = item.Name || item.name;
+            const type = item.Type || item.type || activeTab;
+            
+            if (name) {
+              newProducts.push({
+                name: name,
+                type: type === 'service' ? 'service' : 'product',
+                unitOrderPrice: parseFloat(item.OrderPrice || item.orderPrice || item.unitOrderPrice) || 0,
+                unitSellingPrice: parseFloat(item.SellingPrice || item.sellingPrice || item.unitSellingPrice) || 0,
+                quantity: parseInt(item.Quantity || item.quantity) || 0,
+                description: item.Description || item.description || '',
+                barcode: item.Barcode || item.barcode || ''
+              });
+            }
+          }
+
+          if (newProducts.length > 0) {
+            await db.products.bulkAdd(newProducts);
+            await logAction('IMPORT_INVENTORY', `Imported ${newProducts.length} items`);
+            alert(`Successfully imported ${newProducts.length} items.`);
+          } else {
+            alert('No valid items found to import.');
+          }
+        } catch (error) {
+          console.error("Import error:", error);
+          alert('Failed to import data. Please check your CSV format.');
+        }
+        
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      },
+      error: (error) => {
+        console.error("CSV parse error:", error);
+        alert('Failed to parse CSV file.');
+      }
+    });
+  };
 
   const exportCSV = () => {
     const data = filteredItems.map(p => ({
@@ -156,6 +212,21 @@ export default function Inventory() {
               <Scan size={18} />
             </button>
           </div>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImportCSV}
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+            title="Import CSV"
+          >
+            <Upload size={16} className="sm:mr-2" />
+            <span className="hidden sm:inline">Import</span>
+          </button>
           <button 
             onClick={exportCSV}
             className="flex items-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
