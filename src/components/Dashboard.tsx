@@ -85,7 +85,7 @@ export default function Dashboard() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
         <h4 className="font-bold text-slate-700 mb-6">Sales Performance (Past 7 Days)</h4>
-        <div className="h-64">
+        <div style={{ width: '100%', height: 300, minHeight: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />

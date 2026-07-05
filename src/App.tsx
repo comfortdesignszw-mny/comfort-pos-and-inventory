@@ -11,6 +11,8 @@ import StaffList from './components/Staff';
 import Settings from './components/Settings';
 import AuthScreen from './components/AuthScreen';
 
+import { ErrorBoundary } from './ErrorBoundary';
+
 function AppContent() {
   const { currentUser, logoutUser } = useAppContext();
 
@@ -80,7 +82,9 @@ export default function App() {
 
   return (
     <AppProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </AppProvider>
   );
 }

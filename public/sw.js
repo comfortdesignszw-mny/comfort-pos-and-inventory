@@ -1,4 +1,4 @@
-const CACHE_NAME = 'comfort-pos-v2';
+const CACHE_NAME = 'comfort-pos-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -34,6 +34,29 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   
+  // Network first for navigation requests (HTML), scripts (JS), and styles (CSS)
+  if (event.request.mode === 'navigate' || event.request.destination === 'script' || event.request.destination === 'style') {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
+        return response;
+      }).catch(() => {
+        return caches.match(event.request).then(cachedResponse => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+             return caches.match('/index.html');
+          }
+          return new Response('');
+        });
+      })
+    );
+    return;
+  }
+  
+  // Cache first for other assets (images, css)
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -58,10 +81,6 @@ self.addEventListener('fetch', event => {
           }
         ).catch(() => {
           // Fallback if offline and not in cache
-          // If it's a page navigation, return index.html for SPA routing
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
         });
       })
   );

@@ -8,6 +8,8 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSPrompt, setShowIOSPrompt] = useState(false);
   
   const toggleTheme = () => {
     updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
@@ -18,6 +20,15 @@ export default function Layout() {
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
+    
+    // Check if device is iOS and not running as standalone PWA
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isStandalone = ('standalone' in window.navigator) && (window.navigator as any).standalone;
+    
+    if (isIOSDevice && !isStandalone) {
+      setIsIOS(true);
+    }
     
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
@@ -36,6 +47,10 @@ export default function Layout() {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSPrompt(true);
+      return;
+    }
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -99,7 +114,7 @@ export default function Layout() {
           ))}
         </nav>
           
-        {deferredPrompt && (
+        {(deferredPrompt || isIOS) && (
           <div className="p-4 border-t border-slate-800">
             <div className="bg-emerald-900/40 border border-emerald-500/30 p-3 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
@@ -132,7 +147,7 @@ export default function Layout() {
           </div>
           
           <div className="flex items-center space-x-2 sm:space-x-6">
-            {deferredPrompt && (
+            {(deferredPrompt || isIOS) && (
               <button
                 onClick={handleInstallClick}
                 className="lg:hidden text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-emerald-600"
@@ -173,6 +188,50 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* iOS Install Prompt Modal */}
+      {showIOSPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative">
+            <button 
+              onClick={() => setShowIOSPrompt(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
+                <img src="/icon-192x192.png" alt="App Icon" className="w-full h-full object-cover" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Install Comfort POS</h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Install this application on your home screen for quick and easy offline access.
+              </p>
+              
+              <div className="bg-slate-50 w-full p-4 rounded-xl text-left border border-slate-100">
+                <p className="text-sm text-slate-700 font-medium mb-3">To install on iOS:</p>
+                <ol className="text-sm text-slate-600 space-y-3">
+                  <li className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-xs shrink-0">1</span>
+                    <span>Tap the <strong className="text-blue-600">Share</strong> button in the Safari menu bar.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-xs shrink-0">2</span>
+                    <span>Scroll down and tap <strong className="text-slate-800">"Add to Home Screen"</strong>.</span>
+                  </li>
+                </ol>
+              </div>
+              
+              <button 
+                onClick={() => setShowIOSPrompt(false)}
+                className="mt-6 w-full py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
