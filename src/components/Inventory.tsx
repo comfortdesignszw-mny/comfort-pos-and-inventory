@@ -1,23 +1,32 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product } from '../db';
-import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle, Scan } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 import { exportToCSV } from '../utils/export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import BarcodeScannerModal from './BarcodeScannerModal';
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 
 export default function Inventory() {
   const products = useLiveQuery(() => db.products.toArray()) || [];
   const { currentUser, settings } = useAppContext();
   const [activeTab, setActiveTab] = useState<'product' | 'service'>('product');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
 
+  useBarcodeScanner((barcode) => {
+    setSearchTerm(barcode);
+  });
+
   const filteredItems = products.filter(p => 
-    p.type === activeTab && p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.type === activeTab && 
+    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     (p.barcode && p.barcode.includes(searchTerm)))
   );
 
   const exportCSV = () => {
@@ -135,10 +144,17 @@ export default function Inventory() {
             <input 
               type="text" 
               placeholder={`Search ${activeTab}s...`}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+              className="w-full pl-9 pr-10 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <button 
+              onClick={() => setIsScannerOpen(true)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-emerald-500"
+              title="Scan Barcode"
+            >
+              <Scan size={18} />
+            </button>
           </div>
           <button 
             onClick={exportCSV}
@@ -243,6 +259,10 @@ export default function Inventory() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Description</label>
                 <input type="text" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingItem.description} onChange={e => setEditingItem({...editingItem, description: e.target.value})} />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Barcode</label>
+                <input type="text" placeholder="Scan or type barcode" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingItem.barcode || ''} onChange={e => setEditingItem({...editingItem, barcode: e.target.value})} />
+              </div>
               
               {activeTab === 'product' && (
                 <div>
@@ -269,6 +289,16 @@ export default function Inventory() {
             </form>
           </div>
         </div>
+      )}
+
+      {isScannerOpen && (
+        <BarcodeScannerModal 
+          onClose={() => setIsScannerOpen(false)}
+          onScan={(code) => {
+            setSearchTerm(code);
+            setIsScannerOpen(false);
+          }}
+        />
       )}
     </div>
   );

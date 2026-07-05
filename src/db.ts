@@ -4,6 +4,7 @@ export interface Product {
   id?: number;
   name: string;
   image?: string;
+  barcode?: string;
   description: string;
   quantity: number;
   unitOrderPrice: number;
@@ -63,6 +64,9 @@ export class ComfortPOSDB extends Dexie {
       sales: '++id, timestamp, salespersonId, status',
       staff: '++id, name, role',
       auditLogs: '++id, userId, action, timestamp'
+    });
+    this.version(2).stores({
+      products: '++id, name, type, barcode'
     });
   }
 }

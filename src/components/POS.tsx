@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product, SaleItem } from '../db';
 import { useAppContext } from '../AppContext';
-import { Search, Plus, Minus, Trash2, Printer, FileText, Share2, Download } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Printer, FileText, Share2, Download, Scan } from 'lucide-react';
 import { format } from 'date-fns';
+import BarcodeScannerModal from './BarcodeScannerModal';
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 
 export default function POS() {
   const { settings, currentUser } = useAppContext();
@@ -14,8 +16,20 @@ export default function POS() {
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useBarcodeScanner((barcode) => {
+    // If exact product matches barcode, add it directly to cart
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+    } else {
+      // Otherwise set search term
+      setSearchTerm(barcode);
+    }
+  });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -141,10 +155,17 @@ export default function POS() {
               type="text"
               ref={searchInputRef}
               placeholder="Search products (F1)..." 
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
+              className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <button 
+              onClick={() => setIsScannerOpen(true)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-emerald-500"
+              title="Scan Barcode"
+            >
+              <Scan size={18} />
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
@@ -353,6 +374,21 @@ export default function POS() {
           <p className="mt-4 text-center font-bold">Note: Please Come Again</p>
         </div>
       </div>
+
+      {isScannerOpen && (
+        <BarcodeScannerModal 
+          onClose={() => setIsScannerOpen(false)}
+          onScan={(code) => {
+            const product = products.find(p => p.barcode === code);
+            if (product) {
+              addToCart(product);
+            } else {
+              setSearchTerm(code);
+            }
+            setIsScannerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
