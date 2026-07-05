@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Comfort POS and Inventory</title>
     <link rel="icon" type="image/png" href="/icon-192x192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Comfort POS" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#e02424" />
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="h-screen w-screen overflow-hidden bg-slate-50">
+    <div id="root" class="h-full w-full"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

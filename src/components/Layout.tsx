@@ -18,6 +18,15 @@ export default function Layout() {
   const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
+    const checkDeferredPrompt = () => {
+      if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
+      }
+    };
+    
+    checkDeferredPrompt();
+    window.addEventListener('deferredpromptready', checkDeferredPrompt);
+
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     
@@ -33,6 +42,7 @@ export default function Layout() {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).deferredPrompt = e;
     };
 
     window.addEventListener('online', handleOnline);
@@ -40,6 +50,7 @@ export default function Layout() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
+      window.removeEventListener('deferredpromptready', checkDeferredPrompt);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -72,7 +83,7 @@ export default function Layout() {
   const allowedNavItems = navItems.filter(item => item.roles.includes(currentUser?.role || ''));
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -133,7 +144,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
         {/* Header */}
         <header className="flex items-center justify-between h-16 px-4 sm:px-8 bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center">
@@ -150,7 +161,7 @@ export default function Layout() {
             {(deferredPrompt || isIOS) && (
               <button
                 onClick={handleInstallClick}
-                className="lg:hidden text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-emerald-600"
+                className="text-xs bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-emerald-600"
               >
                 Install App
               </button>
@@ -184,7 +195,7 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-4 sm:p-8 bg-slate-50">
+        <div className="flex-1 overflow-auto p-4 sm:p-8 bg-slate-50 h-[calc(100vh-4rem)]">
           <Outlet />
         </div>
       </main>

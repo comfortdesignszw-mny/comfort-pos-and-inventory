@@ -10,6 +10,7 @@ import SalesHistory from './components/SalesHistory';
 import StaffList from './components/Staff';
 import Settings from './components/Settings';
 import AuthScreen from './components/AuthScreen';
+import InstallToast from './components/InstallToast';
 
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -84,6 +85,7 @@ export default function App() {
     <AppProvider>
       <ErrorBoundary>
         <AppContent />
+        <InstallToast />
       </ErrorBoundary>
     </AppProvider>
   );
