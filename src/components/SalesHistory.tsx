@@ -29,15 +29,16 @@ export default function SalesHistory() {
 
   const exportCSV = () => {
     import('../utils/export').then(m => {
-      const data = filteredSales.map(s => ({
+      const data = sales.map(s => ({
         ID: s.id,
         Date: format(new Date(s.timestamp), 'yyyy-MM-dd HH:mm'),
         Customer: s.customerName || 'Walk-in',
         Salesperson: s.salespersonName,
         Method: s.paymentMethod,
-        Total: s.totalAmount
+        Total: s.totalAmount,
+        Items: s.items.map(i => `${i.name} (x${i.quantity})`).join(', ')
       }));
-      m.exportToCSV(data, 'Sales_History.csv');
+      m.exportToCSV(data, 'Full_Sales_History.csv');
     });
   };
 

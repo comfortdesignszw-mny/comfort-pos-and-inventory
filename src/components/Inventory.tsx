@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product } from '../db';
 import { Search, Plus, Edit2, Trash2, Share2, Download, FileText, AlertTriangle, Scan, Upload } from 'lucide-react';
 import { useAppContext } from '../AppContext';
+import { withAuditLog } from '../utils/audit';
 import { exportToCSV } from '../utils/export';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -16,14 +17,31 @@ export default function Inventory() {
   const [activeTab, setActiveTab] = useState<'product' | 'service'>('product');
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isAddScannerOpen, setIsAddScannerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
 
   useBarcodeScanner((barcode) => {
-    setSearchTerm(barcode);
+    // If the add modal is open, fill barcode
+    if (isModalOpen && editingItem) {
+      handleBarcodeScannedForAdd(barcode);
+    } else if (!isModalOpen) {
+      setSearchTerm(barcode);
+    }
   });
+
+  const handleBarcodeScannedForAdd = (barcode: string) => {
+    const existingProduct = products.find(p => p.barcode === barcode);
+    if (existingProduct) {
+      setEditingItem(existingProduct);
+      alert('Product found in history! Details auto-populated.');
+    } else {
+      setEditingItem(prev => prev ? { ...prev, barcode } : null);
+    }
+    setIsAddScannerOpen(false);
+  };
 
   const filteredItems = products.filter(p => 
     p.type === activeTab && 
@@ -44,7 +62,6 @@ export default function Inventory() {
           const newProducts: Product[] = [];
 
           for (const item of importedData) {
-            // Very simple validation & mapping logic
             const name = item.Name || item.name;
             const type = item.Type || item.type || activeTab;
             
@@ -62,8 +79,9 @@ export default function Inventory() {
           }
 
           if (newProducts.length > 0) {
-            await db.products.bulkAdd(newProducts);
-            await logAction('IMPORT_INVENTORY', `Imported ${newProducts.length} items`);
+            await withAuditLog(currentUser, 'IMPORT_INVENTORY', `Imported ${newProducts.length} items`, async () => {
+              await db.products.bulkAdd(newProducts);
+            });
             alert(`Successfully imported ${newProducts.length} items.`);
           } else {
             alert('No valid items found to import.');
@@ -73,7 +91,6 @@ export default function Inventory() {
           alert('Failed to import data. Please check your CSV format.');
         }
         
-        // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -92,7 +109,8 @@ export default function Inventory() {
       Type: p.type,
       OrderPrice: p.unitOrderPrice,
       SellingPrice: p.unitSellingPrice,
-      Quantity: p.quantity || 0
+      Quantity: p.quantity || 0,
+      Barcode: p.barcode || ''
     }));
     exportToCSV(data, `Inventory_${activeTab}.csv`);
   };
@@ -115,18 +133,7 @@ export default function Inventory() {
     doc.save(`Inventory_${activeTab}.pdf`);
   };
 
-  const logAction = async (action: string, details: string) => {
-    if (currentUser?.id) {
-      await db.auditLogs.add({
-        userId: currentUser.id,
-        userName: currentUser.name,
-        action,
-        details,
-        timestamp: Date.now()
-      });
-    }
-  };
-
+  
   const openModal = (item?: Product) => {
     setEditingItem(item || {
       name: '',
@@ -134,7 +141,8 @@ export default function Inventory() {
       quantity: 0,
       unitOrderPrice: 0,
       unitSellingPrice: 0,
-      type: activeTab
+      type: activeTab,
+      barcode: ''
     });
     setIsModalOpen(true);
   };
@@ -143,11 +151,13 @@ export default function Inventory() {
     e.preventDefault();
     if (editingItem) {
       if (editingItem.id) {
-        await db.products.update(editingItem.id, editingItem);
-        await logAction('UPDATE_INVENTORY', `Updated item: ${editingItem.name}`);
+        await withAuditLog(currentUser, 'UPDATE_INVENTORY', `Updated item: ${editingItem.name}`, async () => {
+          await db.products.update(editingItem.id!, editingItem);
+        });
       } else {
-        await db.products.add(editingItem);
-        await logAction('ADD_INVENTORY', `Added item: ${editingItem.name}`);
+        await withAuditLog(currentUser, 'ADD_INVENTORY', `Added item: ${editingItem.name}`, async () => {
+          await db.products.add(editingItem);
+        });
       }
       setIsModalOpen(false);
     }
@@ -155,8 +165,9 @@ export default function Inventory() {
 
   const handleDelete = async (id: number, name: string) => {
     if (window.confirm("Are you sure you want to delete this item?")) {
-      await db.products.delete(id);
-      await logAction('DELETE_INVENTORY', `Deleted item: ${name}`);
+      await withAuditLog(currentUser, 'DELETE_INVENTORY', `Deleted item: ${name}`, async () => {
+        await db.products.delete(id);
+      });
     }
   };
 
@@ -178,8 +189,8 @@ export default function Inventory() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
+      <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg shrink-0">
           <button 
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'product' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('product')}
@@ -194,8 +205,8 @@ export default function Inventory() {
           </button>
         </div>
         
-        <div className="flex items-center space-x-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input 
               type="text" 
@@ -207,7 +218,7 @@ export default function Inventory() {
             <button 
               onClick={() => setIsScannerOpen(true)}
               className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-emerald-500"
-              title="Scan Barcode"
+              title="Scan Barcode to Search"
             >
               <Scan size={18} />
             </button>
@@ -245,7 +256,7 @@ export default function Inventory() {
           </button>
           <button 
             onClick={() => openModal()}
-            className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+            className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm whitespace-nowrap"
           >
             <Plus size={16} className="mr-2" />
             Add {activeTab === 'product' ? 'Product' : 'Service'}
@@ -277,6 +288,7 @@ export default function Inventory() {
                     <div className="ml-4">
                       <div className="text-sm font-bold text-slate-800">{item.name}</div>
                       <div className="text-sm text-slate-500 truncate w-48 font-medium">{item.description}</div>
+                      {item.barcode && <div className="text-xs text-slate-400 font-mono mt-0.5">{item.barcode}</div>}
                     </div>
                   </div>
                 </td>
@@ -332,7 +344,17 @@ export default function Inventory() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Barcode</label>
-                <input type="text" placeholder="Scan or type barcode" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingItem.barcode || ''} onChange={e => setEditingItem({...editingItem, barcode: e.target.value})} />
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Scan or type barcode" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" value={editingItem.barcode || ''} onChange={e => setEditingItem({...editingItem, barcode: e.target.value})} />
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAddScannerOpen(true)}
+                    className="flex items-center justify-center bg-slate-100 border border-slate-200 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-3 rounded-lg transition-colors"
+                    title="Scan Barcode"
+                  >
+                    <Scan size={18} />
+                  </button>
+                </div>
               </div>
               
               {activeTab === 'product' && (
@@ -369,6 +391,13 @@ export default function Inventory() {
             setSearchTerm(code);
             setIsScannerOpen(false);
           }}
+        />
+      )}
+
+      {isAddScannerOpen && (
+        <BarcodeScannerModal 
+          onClose={() => setIsAddScannerOpen(false)}
+          onScan={handleBarcodeScannedForAdd}
         />
       )}
     </div>

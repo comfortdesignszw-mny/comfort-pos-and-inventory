@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Staff } from '../db';
 import { Users, Shield, Award, Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { useAppContext } from '../AppContext';
+import { withAuditLog } from '../utils/audit';
 
 export default function StaffList() {
   const staff = useLiveQuery(() => db.staff.toArray()) || [];

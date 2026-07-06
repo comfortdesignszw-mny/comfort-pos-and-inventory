@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product, SaleItem } from '../db';
 import { useAppContext } from '../AppContext';
-import { Search, Plus, Minus, Trash2, Printer, FileText, Share2, Download, Scan } from 'lucide-react';
+import { withAuditLog } from '../utils/audit';
+import { Plus, Minus, Trash2, Printer, FileText, Download, X, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import BarcodeScannerModal from './BarcodeScannerModal';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
+import ProductGrid from './ProductGrid';
 
 export default function POS() {
   const { settings, currentUser } = useAppContext();
@@ -17,6 +19,7 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isMobileCatalogOpen, setIsMobileCatalogOpen] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,10 +50,6 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, discount, paymentMethod, customerName, currentUser]);
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.productId === product.id);
@@ -70,6 +69,8 @@ export default function POS() {
         totalPrice: product.unitSellingPrice
       }];
     });
+    // On mobile, automatically close catalog after adding an item to see the cart, or leave it open?
+    // Usually better to leave it open so they can add multiple items, but we can show a brief success state.
   };
 
   const updateQuantity = (productId: number, delta: number) => {
@@ -97,7 +98,8 @@ export default function POS() {
     }
 
     try {
-      const saleId = await db.sales.add({
+      await withAuditLog(currentUser, isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE', `Processed ${isQuotation ? 'quotation' : 'sale'} for ${totalPayable.toFixed(2)} (${cart.length} items)`, async () => {
+        const saleId = await db.sales.add({
         timestamp: Date.now(),
         items: cart,
         subTotal,
@@ -110,14 +112,7 @@ export default function POS() {
         customerName
       });
 
-      await db.auditLogs.add({
-        userId: currentUser.id!,
-        userName: currentUser.name,
-        action: isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE',
-        details: `Processed ${isQuotation ? 'quotation' : 'sale'} for $${totalPayable.toFixed(2)} (${cart.length} items)`,
-        timestamp: Date.now()
-      });
-
+      
       if (!isQuotation) {
         // Deduct inventory
         for (const item of cart) {
@@ -129,6 +124,8 @@ export default function POS() {
           }
         }
       }
+
+      });
 
       alert(isQuotation ? 'Quotation Saved!' : 'Sale Completed Successfully!');
       setCart([]);
@@ -144,60 +141,37 @@ export default function POS() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Products Grid */}
-      <div className="flex-1 flex flex-col min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between flex-col sm:flex-row gap-3">
-          <h4 className="font-bold text-slate-700 shrink-0">Product Catalog</h4>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-            <input 
-              type="text"
-              ref={searchInputRef}
-              placeholder="Search products (F1)..." 
-              className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-colors"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button 
-              onClick={() => setIsScannerOpen(true)}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-emerald-500"
-              title="Scan Barcode"
-            >
-              <Scan size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredProducts.map(product => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className="flex flex-col items-center justify-center p-4 border border-slate-200 rounded-xl hover:border-emerald-500 transition-all bg-white text-left text-sm group glow-card"
-              >
-                <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-emerald-50 flex items-center justify-center text-slate-600 group-hover:text-emerald-600 font-bold mb-3 transition-colors">
-                  {product.name.substring(0, 2).toUpperCase()}
-                </div>
-                <span className="font-bold text-slate-800 line-clamp-2 text-center h-10">{product.name}</span>
-                <span className="text-emerald-600 font-black mt-2">${product.unitSellingPrice.toFixed(2)}</span>
-                {product.type === 'product' && (
-                  <span className="text-[10px] uppercase font-bold text-slate-400 mt-1">Stock: {product.quantity}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="flex flex-col lg:flex-row gap-6 h-full relative">
+      {/* Desktop Products Grid */}
+      <div className="hidden lg:flex flex-1 flex-col min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <ProductGrid 
+          products={products}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          onAddToCart={addToCart}
+          onOpenScanner={() => setIsScannerOpen(true)}
+          searchInputRef={searchInputRef}
+        />
       </div>
 
       {/* Cart Panel */}
-      <div className="w-full lg:w-96 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
-        <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+      <div className="w-full lg:w-96 flex flex-1 lg:flex-none flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
+        <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
           <h4 className="font-bold">Current Sale</h4>
-          <span className="text-xs bg-slate-800 px-2 py-1 rounded font-mono">{format(new Date(), 'HH:mm')}</span>
+          <div className="flex items-center gap-2">
+            {/* Mobile Add to checkout button */}
+            <button 
+              onClick={() => setIsMobileCatalogOpen(true)}
+              className="lg:hidden flex items-center bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+            >
+              <ShoppingBag size={14} className="mr-1" />
+              Add to checkout
+            </button>
+            <span className="text-xs bg-slate-800 px-2 py-1 rounded font-mono hidden sm:inline-block">{format(new Date(), 'HH:mm')}</span>
+          </div>
         </div>
         
-        <div className="p-4 border-b border-slate-100 bg-slate-50">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 shrink-0">
           <input 
             type="text" 
             placeholder="Customer Name (Optional)" 
@@ -207,7 +181,7 @@ export default function POS() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
               <ShoppingCartIcon className="w-12 h-12 mb-2 opacity-50 text-slate-300" />
@@ -234,7 +208,7 @@ export default function POS() {
           )}
         </div>
 
-        <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-3">
+        <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-3 shrink-0">
           <div className="flex justify-between text-sm text-slate-600 font-medium">
             <span>Sub-Total</span>
             <span className="font-bold">${subTotal.toFixed(2)}</span>
@@ -316,6 +290,31 @@ export default function POS() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Catalog Modal */}
+      {isMobileCatalogOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-slate-900/50 flex flex-col pt-10">
+          <div className="bg-white flex-1 rounded-t-2xl shadow-xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">Select Items</h3>
+              <button 
+                onClick={() => setIsMobileCatalogOpen(false)}
+                className="p-2 text-slate-500 hover:text-slate-800 bg-slate-100 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <ProductGrid 
+              products={products}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              onAddToCart={addToCart}
+              onOpenScanner={() => setIsScannerOpen(true)}
+              searchInputRef={searchInputRef}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Hidden Printable Receipt */}
       <div id="printable-receipt" className="hidden p-8 max-w-sm mx-auto bg-white text-black">
