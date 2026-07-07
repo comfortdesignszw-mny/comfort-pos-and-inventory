@@ -31,7 +31,7 @@ export interface SaleLog {
   paymentMethod: string;
   salespersonId: number;
   salespersonName: string;
-  status: 'completed' | 'quotation' | 'reversed';
+  status: 'completed' | 'quotation' | 'reversed' | 'reversed_original';
   customerName?: string;
 }
 

@@ -102,11 +102,11 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col sm:justify-center items-center p-4 py-8 overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 grid place-items-center p-4 overflow-y-auto">
       <motion.div 
         animate={shake ? { x: [-10, 10, -10, 10, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-auto"
+        className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-8"
       >
         <div className="bg-slate-900 p-8 text-center relative">
           <button

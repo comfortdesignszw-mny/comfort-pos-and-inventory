@@ -12,7 +12,9 @@ export function generateReceiptPDF(sale: any, settings: any) {
   if (settings.logo) {
     try {
       // Assuming logo is a base64 image
-      doc.addImage(settings.logo, 'JPEG', 30, y, 20, 20); // x=30 so it centers (80 width / 2 - 10)
+      // Infer image type from data URL or default to PNG
+      const imgType = settings.logo.includes('image/jpeg') ? 'JPEG' : 'PNG';
+      doc.addImage(settings.logo, imgType, 30, y, 20, 20); // x=30 so it centers (80 width / 2 - 10)
       y += 25;
     } catch (e) {
       console.error('Failed to add logo to PDF:', e);

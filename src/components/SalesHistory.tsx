@@ -12,7 +12,7 @@ export default function SalesHistory() {
 
   const handleReverseSaleClick = (e: React.MouseEvent, sale: SaleLog) => {
     e.stopPropagation();
-    if (sale.status === 'reversed') return;
+    if (sale.status.startsWith('reversed')) return;
     setReversalPinModal({isOpen: true, sale, pin: '', authorizerId: ''});
   };
 
@@ -242,6 +242,7 @@ export default function SalesHistory() {
           <thead className="bg-slate-50 sticky top-0 z-10">
             <tr>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Type</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Receipt #</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer / Staff</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Method</th>
@@ -254,6 +255,15 @@ export default function SalesHistory() {
               <tr key={sale.id} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => setSelectedSale(sale)}>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-800">
                   {format(new Date(sale.timestamp), 'dd MMM yyyy, HH:mm')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase rounded ${
+                    sale.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                    sale.status.startsWith('reversed') ? 'bg-red-100 text-red-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>
+                    {sale.status === 'completed' ? 'Sale' : sale.status === 'reversed' ? 'Reversal Entry' : sale.status === 'reversed_original' ? 'Reversed Sale' : 'Quotation'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-slate-500">
                   #{sale.id}
@@ -344,7 +354,7 @@ export default function SalesHistory() {
                  </div>
                  <div>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Type</p>
-                   <p className="font-bold text-slate-700 capitalize">{selectedSale.status}</p>
+                   <p className="font-bold text-slate-700 capitalize">{selectedSale.status === 'completed' ? 'Sale' : selectedSale.status === 'reversed' ? 'Reversal Entry' : selectedSale.status === 'reversed_original' ? 'Reversed Sale' : 'Quotation'}</p>
                  </div>
                </div>
 
