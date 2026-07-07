@@ -46,7 +46,7 @@ export function generateReceiptPDF(sale: any, settings: any) {
   y += 2;
   
   const tableData = sale.items.map((item: any) => [
-    item.productName,
+    item.name || item.productName,
     item.quantity.toString(),
     `$${item.unitPrice.toFixed(2)}`,
     `$${item.totalPrice.toFixed(2)}`
@@ -90,7 +90,10 @@ export function generateReceiptPDF(sale: any, settings: any) {
   y += 10;
   
   doc.setFontSize(10);
-  doc.text('Thank you!', 40, y, { align: 'center' });
+  doc.text('Thank you for shopping from us!', 40, y, { align: 'center' });
+  y += 5;
+  doc.setFontSize(8);
+  doc.text('Receipt processed by Comfort POS System', 40, y, { align: 'center' });
 
   doc.save(`Receipt_${sale.id || Date.now()}.pdf`);
 }

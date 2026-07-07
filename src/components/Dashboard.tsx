@@ -26,6 +26,7 @@ export default function Dashboard() {
   const totalDaily = dailySales.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalWeekly = weeklySales.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalMonthly = monthlySales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalReversed = reversedSales.reduce((sum, s) => sum + s.totalAmount, 0);
 
   // Calculate chart data for past 7 days
   const chartData = useMemo(() => {
@@ -135,6 +136,7 @@ export default function Dashboard() {
               <div className="p-5 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Reversed Sales</p>
                 <h3 className="text-2xl font-black text-red-600">{reversedSales.length}</h3>
+                <p className="text-[10px] text-red-500 font-bold mt-1">Value: ${totalReversed.toFixed(2)}</p>
               </div>
             </div>
             

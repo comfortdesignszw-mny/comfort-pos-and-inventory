@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Product, SaleItem } from '../db';
 import { useAppContext } from '../AppContext';
@@ -8,8 +9,16 @@ import { format } from 'date-fns';
 import BarcodeScannerModal from './BarcodeScannerModal';
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner';
 import ProductGrid from './ProductGrid';
+import ReceiptModal from './ReceiptModal';
+import { SaleLog } from '../db';
 
 export default function POS() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const reversalSale = location.state?.reversalSale;
+  const authorizer = location.state?.authorizer;
+  const [completedSale, setCompletedSale] = useState<SaleLog | null>(null);
+
   const { settings, currentUser } = useAppContext();
   const products = useLiveQuery(() => db.products.toArray()) || [];
   
@@ -22,6 +31,16 @@ export default function POS() {
   const [isMobileCatalogOpen, setIsMobileCatalogOpen] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (reversalSale) {
+      setCart(reversalSale.items);
+      setDiscount(reversalSale.discount);
+      setCustomerName(reversalSale.customerName || 'Walk-in Customer');
+      setPaymentMethod(reversalSale.paymentMethod);
+    }
+  }, [reversalSale]);
+
 
   useBarcodeScanner((barcode) => {
     // If exact product matches barcode, add it directly to cart
@@ -388,10 +407,13 @@ export default function POS() {
           }}
         />
       )}
+    
+      {completedSale && (
+        <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} />
+      )}
     </div>
   );
 }
-
 function ShoppingCartIcon(props: any) {
   return (
     <svg
