@@ -27,7 +27,7 @@ const defaultSettings: AppSettings = {
   branches: '1',
   branchName: 'Main Branch',
   logo: '',
-  theme: 'red',
+  theme: 'light',
   lowStockThreshold: 10
 };
 

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../AppContext';
 import { db, Staff } from '../db';
-import { Shield, UserPlus, LogIn, Store, Delete } from 'lucide-react';
+import { Shield, UserPlus, LogIn, Store, Delete, Moon, Sun } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function AuthScreen() {
-  const { staffList, refreshStaff, setCurrentUser, settings } = useAppContext();
+  const { staffList, refreshStaff, setCurrentUser, settings, updateSettings } = useAppContext();
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
@@ -87,6 +87,10 @@ export default function AuthScreen() {
     }
   };
 
+  const toggleTheme = () => {
+    updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
+  };
+  
   const handleNumpad = (num: number) => {
     if (pin.length < 4) {
       setPin(prev => prev + num);
@@ -104,7 +108,14 @@ export default function AuthScreen() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-auto"
       >
-        <div className="bg-slate-900 p-8 text-center">
+        <div className="bg-slate-900 p-8 text-center relative">
+          <button
+            onClick={toggleTheme}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors"
+            title="Toggle Theme"
+          >
+            {settings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
           <div className="w-16 h-16 bg-emerald-500 rounded-2xl mx-auto flex items-center justify-center text-white mb-4 shadow-lg">
             {settings.businessName ? settings.businessName.charAt(0).toUpperCase() : <Store size={32} />}
           </div>

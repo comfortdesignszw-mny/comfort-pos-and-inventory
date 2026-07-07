@@ -8,30 +8,34 @@ import { useAppContext } from '../AppContext';
 
 export default function SalesHistory() {
   const navigate = useNavigate();
-  const [reversalPinModal, setReversalPinModal] = useState<{isOpen: boolean, sale: SaleLog | null, pin: string}>({isOpen: false, sale: null, pin: ''});
+  const [reversalPinModal, setReversalPinModal] = useState<{isOpen: boolean, sale: SaleLog | null, pin: string, authorizerId: string | number}>({isOpen: false, sale: null, pin: '', authorizerId: ''});
 
   const handleReverseSaleClick = (e: React.MouseEvent, sale: SaleLog) => {
     e.stopPropagation();
     if (sale.status === 'reversed') return;
-    setReversalPinModal({isOpen: true, sale, pin: ''});
+    setReversalPinModal({isOpen: true, sale, pin: '', authorizerId: ''});
   };
 
   const handleReversalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { sale, pin } = reversalPinModal;
+    const { sale, pin, authorizerId } = reversalPinModal;
     if (!sale) return;
 
-    const validStaff = await db.staff.where('pin').equals(pin).first();
+    const validStaff = await db.staff.get(Number(authorizerId));
+    if (!validStaff || validStaff.pin !== pin) {
+       alert("Invalid Name or PIN.");
+       return;
+    }
     if (!validStaff || (validStaff.role !== 'Manager' && validStaff.role !== 'Admin')) {
        alert("Invalid PIN or unauthorized role. Only Manager or Admin can authorize a reversal.");
        return;
     }
 
-    setReversalPinModal({isOpen: false, sale: null, pin: ''});
+    setReversalPinModal({isOpen: false, sale: null, pin: '', authorizerId: ''});
     navigate('/pos', { state: { reversalSale: sale, authorizer: validStaff } });
   };
 
-  const { settings } = useAppContext();
+  const { settings, staffList } = useAppContext();
   const sales = useLiveQuery(() => db.sales.orderBy('timestamp').reverse().toArray()) || [];
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -413,8 +417,20 @@ export default function SalesHistory() {
                 &times;
               </button>
             </div>
+            
             <form onSubmit={handleReversalSubmit} className="p-6">
-              <p className="text-sm text-slate-600 mb-4">Enter an Admin or Manager PIN to authorize the reversal of Receipt #{reversalPinModal.sale?.id}.</p>
+              <p className="text-sm text-slate-600 mb-4">Enter an Admin or Manager name and PIN to authorize the reversal of Receipt #{reversalPinModal.sale?.id}.</p>
+              <select
+                required
+                value={reversalPinModal.authorizerId}
+                onChange={e => setReversalPinModal({...reversalPinModal, authorizerId: e.target.value})}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-slate-800 mb-4"
+              >
+                <option value="">-- Select Manager / Admin --</option>
+                {staffList.filter(s => s.role === 'Admin' || s.role === 'Manager').map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                ))}
+              </select>
               <input
                 type="password"
                 required
@@ -424,13 +440,13 @@ export default function SalesHistory() {
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-slate-800 mb-4 text-center tracking-widest text-lg"
                 value={reversalPinModal.pin}
                 onChange={e => setReversalPinModal({...reversalPinModal, pin: e.target.value.replace(/[^0-9]/g, '')})}
-                autoFocus
               />
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setReversalPinModal({isOpen: false, sale: null, pin: ''})} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
+                <button type="button" onClick={() => setReversalPinModal({isOpen: false, sale: null, pin: '', authorizerId: ''})} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">Authorize</button>
               </div>
             </form>
+
           </div>
         </div>
       )}

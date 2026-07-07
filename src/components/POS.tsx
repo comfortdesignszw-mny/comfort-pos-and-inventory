@@ -109,6 +109,8 @@ export default function POS() {
   const subTotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
   const totalPayable = Math.max(0, subTotal - discount);
 
+  const isReversal = !!reversalSale;
+
   const handleCheckout = async (isQuotation = false) => {
     if (cart.length === 0) return;
     if (!currentUser) {
@@ -116,39 +118,72 @@ export default function POS() {
       return;
     }
 
-    try {
-      await withAuditLog(currentUser, isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE', `Processed ${isQuotation ? 'quotation' : 'sale'} for ${totalPayable.toFixed(2)} (${cart.length} items)`, async () => {
-        const saleId = await db.sales.add({
-        timestamp: Date.now(),
-        items: cart,
-        subTotal,
-        discount,
-        totalAmount: totalPayable,
-        paymentMethod,
-        salespersonId: currentUser.id!,
-        salespersonName: currentUser.name,
-        status: isQuotation ? 'quotation' : 'completed',
-        customerName
-      });
+    if (isReversal) {
+      if (!window.confirm('Are you sure you want to process this reversal?')) return;
+      try {
+        await withAuditLog(currentUser, 'REVERSE_SALE', `Reversed Sale #${reversalSale.id} authorized by ${authorizer?.name}`, async () => {
+           await db.sales.update(reversalSale.id, { status: 'reversed' });
+           // restore inventory
+           for (const item of cart) {
+              const product = await db.products.get(item.productId);
+              if (product && product.type === 'product') {
+                await db.products.update(item.productId, {
+                   quantity: product.quantity + item.quantity
+                });
+              }
+           }
+        });
+        alert(`The sale for receipt number ${reversalSale.id} has been successfully reversed.`);
+        setCart([]);
+        setDiscount(0);
+        navigate('/sales-history', { replace: true });
+      } catch(err) {
+        console.error(err);
+        alert('Failed to reverse sale');
+      }
+      return;
+    }
 
-      
-      if (!isQuotation) {
-        // Deduct inventory
-        for (const item of cart) {
-          const product = await db.products.get(item.productId);
-          if (product && product.type === 'product') {
-            await db.products.update(item.productId, {
-              quantity: Math.max(0, product.quantity - item.quantity)
-            });
+    try {
+      let saleObj: any = null;
+      await withAuditLog(currentUser, isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE', `Processed ${isQuotation ? 'quotation' : 'sale'} for ${totalPayable.toFixed(2)} (${cart.length} items)`, async () => {
+        saleObj = {
+          timestamp: Date.now(),
+          items: cart,
+          subTotal,
+          discount,
+          totalAmount: totalPayable,
+          paymentMethod,
+          salespersonId: currentUser.id!,
+          salespersonName: currentUser.name,
+          status: isQuotation ? 'quotation' : 'completed',
+          customerName
+        };
+        const saleId = await db.sales.add(saleObj);
+        saleObj.id = saleId;
+
+        if (!isQuotation) {
+          // Deduct inventory
+          for (const item of cart) {
+            const product = await db.products.get(item.productId);
+            if (product && product.type === 'product') {
+              await db.products.update(item.productId, {
+                quantity: Math.max(0, product.quantity - item.quantity)
+              });
+            }
           }
         }
-      }
-
       });
-
-      alert(isQuotation ? 'Quotation Saved!' : 'Sale Completed Successfully!');
+      
+      if (!isQuotation) {
+         setCompletedSale(saleObj);
+      } else {
+         alert('Quotation Saved!');
+      }
+      
       setCart([]);
       setDiscount(0);
+      setCustomerName('Walk-in Customer');
     } catch (error) {
       console.error(error);
       alert('Transaction failed.');
@@ -267,16 +302,18 @@ export default function POS() {
               disabled={cart.length === 0}
               className="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold transition-colors shadow-sm disabled:opacity-50"
             >
-              Process Sale (F2)
+              {isReversal ? 'Complete Reversal' : 'Process Sale (F2)'}
             </button>
-            <button 
-              onClick={() => handleCheckout(true)}
-              disabled={cart.length === 0}
-              className="flex items-center justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
-            >
-              <FileText size={16} className="mr-2" />
-              Quote
-            </button>
+            {!isReversal && (
+              <button 
+                onClick={() => handleCheckout(true)}
+                disabled={cart.length === 0}
+                className="flex items-center justify-center bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                <FileText size={16} className="mr-2" />
+                Quote
+              </button>
+            )}
             <div className="flex gap-2">
               <button 
                 onClick={handlePrint}
