@@ -29,6 +29,8 @@ export default function POS() {
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isMobileCatalogOpen, setIsMobileCatalogOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<any>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -70,6 +72,9 @@ export default function POS() {
   }, [cart, discount, paymentMethod, customerName, currentUser]);
 
   const addToCart = (product: Product) => {
+    setToastMessage(`${product.name} added to checkout`);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
     setCart(prev => {
       const existing = prev.find(item => item.productId === product.id);
       if (existing) {
@@ -462,6 +467,12 @@ export default function POS() {
     
       {completedSale && (
         <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} />
+      )}
+      
+      {toastMessage && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm z-50 transition-all animate-bounce">
+          {toastMessage}
+        </div>
       )}
     </div>
   );

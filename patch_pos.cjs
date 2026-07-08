@@ -1,44 +1,36 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/components/POS.tsx', 'utf-8');
 
-code = code.replace(/import \{ useAppContext \} from '\.\.\/AppContext';/, `import { useAppContext } from '../AppContext';\nimport { withAuditLog } from '../utils/audit';`);
+code = code.replace(
+  /const \[isMobileCatalogOpen, setIsMobileCatalogOpen\] = useState\(false\);/,
+  `const [isMobileCatalogOpen, setIsMobileCatalogOpen] = useState(false);\n  const [toastMessage, setToastMessage] = useState<string | null>(null);\n  const toastTimerRef = useRef<any>(null);`
+);
 
-code = code.replace(/try \{\s*const saleId = await db\.sales\.add\(\{([\s\S]*?)\}\);\s*await db\.auditLogs\.add\(\{([\s\S]*?)\}\);/m, `try {\n      await withAuditLog(currentUser, isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE', \`Processed \${isQuotation ? 'quotation' : 'sale'} for $\${totalPayable.toFixed(2)} (\${cart.length} items)\`, async () => {\n        const saleId = await db.sales.add({$1});`);
+code = code.replace(
+  /const addToCart = \(product: Product\) => \{/,
+  `const addToCart = (product: Product) => {
+    setToastMessage(\`\${product.name} added to checkout\`);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);`
+);
 
-// Close the withAuditLog call
-code = code.replace(/if \(\!isQuotation\) \{\s*\/\/ Deduct inventory/m, `\n      if (!isQuotation) {\n        // Deduct inventory`);
-
-// Wait, the block was:
-/*
-    try {
-      const saleId = await db.sales.add({
-        timestamp: Date.now(),
-        items: cart,
-        subTotal,
-        discount,
-        totalAmount: totalPayable,
-        paymentMethod,
-        salespersonId: currentUser.id!,
-        salespersonName: currentUser.name,
-        status: isQuotation ? 'quotation' : 'completed',
-        customerName
-      });
-
-      await db.auditLogs.add({
-        userId: currentUser.id!,
-        userName: currentUser.name,
-        action: isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE',
-        details: `Processed ${isQuotation ? 'quotation' : 'sale'} for $${totalPayable.toFixed(2)} (${cart.length} items)`,
-        timestamp: Date.now()
-      });
-
-      if (!isQuotation) {
-        // Deduct inventory
-*/
-
-code = code.replace(/try \{\s*const saleId = await db\.sales\.add\(\{\s*timestamp: Date\.now\(\),\s*items: cart,\s*subTotal,\s*discount,\s*totalAmount: totalPayable,\s*paymentMethod,\s*salespersonId: currentUser\.id!,\s*salespersonName: currentUser\.name,\s*status: isQuotation \? 'quotation' : 'completed',\s*customerName\s*\}\);\s*await db\.auditLogs\.add\(\{\s*userId: currentUser\.id!,\s*userName: currentUser\.name,\s*action: isQuotation \? 'CREATE_QUOTATION' : 'COMPLETE_SALE',\s*details: `Processed \$\{isQuotation \? 'quotation' : 'sale'\} for \$\$\{totalPayable\.toFixed\(2\)\} \(\$\{cart\.length\} items\)`,\s*timestamp: Date\.now\(\)\s*\}\);\s*if \(\!isQuotation\) \{/m, `try {\n      await withAuditLog(currentUser, isQuotation ? 'CREATE_QUOTATION' : 'COMPLETE_SALE', \`Processed \${isQuotation ? 'quotation' : 'sale'} for $\${totalPayable.toFixed(2)} (\${cart.length} items)\`, async () => {\n        const saleId = await db.sales.add({\n          timestamp: Date.now(),\n          items: cart,\n          subTotal,\n          discount,\n          totalAmount: totalPayable,\n          paymentMethod,\n          salespersonId: currentUser.id!,\n          salespersonName: currentUser.name,\n          status: isQuotation ? 'quotation' : 'completed',\n          customerName\n        });\n\n        if (!isQuotation) {`);
-
-// Close the withAuditLog wrapper
-code = code.replace(/alert\(isQuotation \? 'Quotation Saved!' : 'Sale Completed Successfully!'\);\s*setCart\(\[\]\);\s*setDiscount\(0\);\s*\} catch \(error\) \{/m, `});\n\n      alert(isQuotation ? 'Quotation Saved!' : 'Sale Completed Successfully!');\n      setCart([]);\n      setDiscount(0);\n    } catch (error) {`);
+// Add toast UI at the end of the return statement before the last closing div.
+// Wait, POS returns a top-level div with className="flex flex-col lg:flex-row h-full gap-4 overflow-hidden relative"
+// Let's add the toast as absolute
+code = code.replace(
+  /\{completedSale && \(\s*<ReceiptModal sale=\{completedSale\} onClose=\{\(\) => setCompletedSale\(null\)\} \/>\s*\)\}\s*<\/div>\s*\)\;\s*\}\s*$/m,
+  `{completedSale && (
+        <ReceiptModal sale={completedSale} onClose={() => setCompletedSale(null)} />
+      )}
+      
+      {toastMessage && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold text-sm z-50 transition-all animate-bounce">
+          {toastMessage}
+        </div>
+      )}
+    </div>
+  );
+}`
+);
 
 fs.writeFileSync('src/components/POS.tsx', code);
