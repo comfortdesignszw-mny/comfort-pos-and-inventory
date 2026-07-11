@@ -102,12 +102,14 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center p-4 py-8 overflow-y-auto">
+    <div className="min-h-[100dvh] bg-slate-50 p-4 overflow-y-auto flex flex-col">
+      <div className="flex-1 shrink-0 min-h-[2rem]"></div>
+      <div className="w-full max-w-md mx-auto shrink-0 py-2">
       <motion.div 
-        animate={shake ? { x: [-10, 10, -10, 10, 0] } : {}}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-auto shrink-0"
-      >
+          animate={shake ? { x: [-10, 10, -10, 10, 0] } : {}}
+          transition={{ duration: 0.4 }}
+          className="w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 shrink-0"
+        >
         <div className="bg-slate-900 p-8 text-center relative">
           <button
             onClick={toggleTheme}
@@ -158,9 +160,8 @@ export default function AuthScreen() {
                     {[0, 1, 2, 3].map(i => (
                       <div key={i} className={`w-4 h-4 rounded-full ${i < pin.length ? 'bg-slate-800' : 'bg-slate-200'}`} />
                     ))}
-                  </div>
+                                                </div>
                 </div>
-                
                 <div className="grid grid-cols-3 gap-3">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                     <button
@@ -262,7 +263,9 @@ export default function AuthScreen() {
           )}
         </div>
       </motion.div>
-      <p className="text-slate-400 font-medium text-xs mt-8">Comfort POS &copy; {new Date().getFullYear()}</p>
+        <p className="text-slate-400 font-medium text-xs mt-8 text-center">Comfort POS &copy; {new Date().getFullYear()}</p>
+      </div>
+      <div className="flex-1 shrink-0 min-h-[2rem]"></div>
     </div>
   );
 }
